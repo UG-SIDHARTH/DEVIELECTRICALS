@@ -68,7 +68,7 @@ const rawConfig = {
   MARKETING_PORT: marketingPort,
   BILLING_PORT: billingPort,
   PUBLIC_ORIGIN: process.env.PUBLIC_ORIGIN ? process.env.PUBLIC_ORIGIN.trim() : (isTestEnv ? 'http://127.0.0.1:3164' : `http://localhost:${marketingPort}`),
-  TRUSTED_PROXY_IP: process.env.TRUSTED_PROXY_IP || '172.28.0.10',
+  TRUSTED_PROXY_IP: process.env.TRUSTED_PROXY_IP || '127.0.0.1',
 
   DB_HOST: process.env.DB_HOST || (isTestEnv ? 'localhost' : 'db'),
   DB_PORT: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 5432,

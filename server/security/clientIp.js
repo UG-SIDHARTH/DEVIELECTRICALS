@@ -16,11 +16,15 @@ export function getClientIp(req) {
     remotePeer = remotePeer.replace('::ffff:', '');
   }
 
-  // Only trust proxy headers when TCP connection originates from trusted cloudflared IP
-  if (remotePeer === config.trustedProxyIp || (!config.isProd && (remotePeer === '127.0.0.1' || remotePeer === '::1'))) {
-    const cfConnectingIp = req.headers['cf-connecting-ip'];
+  // Only trust proxy headers when TCP connection originates from trusted proxy IP or loopback
+  const isTrusted = remotePeer === config.trustedProxyIp ||
+                    remotePeer === '127.0.0.1' ||
+                    remotePeer === '::1';
+
+  if (isTrusted) {
+    const cfConnectingIp = req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'];
     if (typeof cfConnectingIp === 'string') {
-      const cleanIp = cfConnectingIp.trim();
+      const cleanIp = cfConnectingIp.split(',')[0].trim();
       if (net.isIP(cleanIp)) {
         return cleanIp;
       }

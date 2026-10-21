@@ -69,7 +69,7 @@ services:
       MARKETING_PORT: ${MARKETING_PORT:-3164}
       BILLING_PORT: ${BILLING_PORT:-3165}
       PORT: ${MARKETING_PORT:-3164}
-      TRUSTED_PROXY_IP: 172.28.0.10
+      TRUSTED_PROXY_IP: ${TRUSTED_PROXY_IP:-127.0.0.1}
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: devi
@@ -126,8 +126,7 @@ services:
     profiles:
       - tunnel
     networks:
-      edge:
-        ipv4_address: 172.28.0.10
+      - edge
     depends_on:
       app:
         condition: service_healthy
@@ -264,10 +263,6 @@ networks:
     internal: true
   edge:
     driver: bridge
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.28.0.0/24
   test_net:
     driver: bridge
 
