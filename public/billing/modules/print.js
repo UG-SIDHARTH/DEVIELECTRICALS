@@ -1,6 +1,6 @@
 import { formatMoney, formatQty, formatDate } from './ui.js';
 import { getState } from './state.js';
-import { amountInWords } from '../../services/words.js';
+import { amountInWords } from './words.js';
 
 export function printDocument(doc) {
   const container = document.getElementById('print-sheet-container');
