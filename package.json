@@ -32,7 +32,7 @@
   "devDependencies": {
     "@fontsource/inter": "^5.1.1",
     "@fontsource/plus-jakarta-sans": "^5.1.1",
-    "@tesseract.js-data/eng": "^4.0.0",
+    "@tesseract.js-data/eng": "^1.0.0",
     "autoprefixer": "^10.4.20",
     "lucide-static": "^0.473.0",
     "postcss": "^8.4.49",

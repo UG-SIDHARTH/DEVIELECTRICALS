@@ -1,10 +1,11 @@
 import http from 'node:http';
-import app from './app.js';
+import { marketingApp, billingApp, app } from './app.js';
 import config from './config.js';
 import { pool } from './db/pool.js';
 import { purgeExpiredSessions } from './security/sessions.js';
 
-const server = http.createServer(app);
+let marketingServer;
+let billingServer;
 
 // Periodic cleanup of expired sessions
 const sessionCleanupInterval = setInterval(async () => {
@@ -15,10 +16,30 @@ const sessionCleanupInterval = setInterval(async () => {
   }
 }, 60 * 60 * 1000);
 
-server.listen(config.port, '0.0.0.0', () => {
-  console.log(`=== Devi Electrical App Server running on port ${config.port} (${config.env}) ===`);
-  console.log(`Database connected to ${config.db.host}:${config.db.port}/${config.db.database}`);
-});
+if (config.marketingPort === config.billingPort) {
+  // Fallback if both ports are identical: run single unified app
+  const unifiedServer = http.createServer(app);
+  unifiedServer.listen(config.port, '0.0.0.0', () => {
+    console.log(`=== Devi Electrical Server running on port ${config.port} (${config.env}) ===`);
+    console.log(`Database connected to ${config.db.host}:${config.db.port}/${config.db.database}`);
+  });
+  marketingServer = unifiedServer;
+  billingServer = unifiedServer;
+} else {
+  // Dual-port architecture:
+  // Port 3164 -> Public Marketing Website
+  // Port 3165 -> Private Staff Billing & Inventory App
+  marketingServer = http.createServer(marketingApp);
+  marketingServer.listen(config.marketingPort, '0.0.0.0', () => {
+    console.log(`=== [PORT ${config.marketingPort}] Devi Electrical Public Website running (${config.env}) ===`);
+  });
+
+  billingServer = http.createServer(billingApp);
+  billingServer.listen(config.billingPort, '0.0.0.0', () => {
+    console.log(`=== [PORT ${config.billingPort}] Devi Electrical Billing & Management App running (${config.env}) ===`);
+    console.log(`Database connected to ${config.db.host}:${config.db.port}/${config.db.database}`);
+  });
+}
 
 // Graceful Shutdown
 let shuttingDown = false;
@@ -29,17 +50,24 @@ async function gracefulShutdown(signal) {
 
   clearInterval(sessionCleanupInterval);
 
-  server.close(async () => {
-    console.log('HTTP server closed. Closing database connections...');
-    try {
-      await pool.end();
-      console.log('Database pool terminated cleanly. Exiting.');
-      process.exit(0);
-    } catch (err) {
-      console.error('Error during pool termination:', err.message);
-      process.exit(1);
+  const closeServer = (srv) => new Promise((resolve) => {
+    if (srv && srv.listening) {
+      srv.close(() => resolve());
+    } else {
+      resolve();
     }
   });
+
+  try {
+    await Promise.all([closeServer(marketingServer), closeServer(billingServer)]);
+    console.log('HTTP servers closed. Terminating database pool...');
+    await pool.end();
+    console.log('Database pool terminated cleanly. Exiting.');
+    process.exit(0);
+  } catch (err) {
+    console.error('Error during shutdown:', err.message);
+    process.exit(1);
+  }
 
   // Force exit if shutdown hangs over 15 seconds
   setTimeout(() => {

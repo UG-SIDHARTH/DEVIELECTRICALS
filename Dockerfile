@@ -11,8 +11,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ENV SHARP_FORCE_GLOBAL_LIBVIPS=1
 
-COPY package.json package-lock.json ./
-RUN npm ci --ignore-scripts
+COPY package.json package-lock.json* ./
+RUN if [ -f package-lock.json ]; then npm ci --ignore-scripts; else npm install --ignore-scripts; fi
 RUN npm rebuild sharp argon2 --build-from-source
 
 # Stage 2: Build frontend assets, Tailwind CSS, vendor assets & template PUBLIC_ORIGIN
@@ -20,7 +20,7 @@ FROM node:24-bookworm-slim AS build
 WORKDIR /app
 ARG PUBLIC_ORIGIN
 
-COPY package.json package-lock.json tailwind.config.js ./
+COPY package.json package-lock.json* tailwind.config.js ./
 COPY --from=deps /app/node_modules ./node_modules
 COPY src ./src
 COPY public ./public
@@ -42,8 +42,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ENV SHARP_FORCE_GLOBAL_LIBVIPS=1
 
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev --ignore-scripts
+COPY package.json package-lock.json* ./
+RUN if [ -f package-lock.json ]; then npm ci --omit=dev --ignore-scripts; else npm install --omit=dev --ignore-scripts; fi
 RUN npm rebuild sharp argon2 --build-from-source
 
 # Stage 4: Minimal, hardened production runtime
@@ -64,9 +64,9 @@ COPY --chown=node:node package.json ./
 
 USER node
 
-EXPOSE 3000
+EXPOSE 3164 3165
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
+  CMD node -e "fetch('http://127.0.0.1:3164/api/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
 
 CMD ["node", "--max-old-space-size=384", "server/index.js"]

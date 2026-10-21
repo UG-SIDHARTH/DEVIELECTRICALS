@@ -5,6 +5,7 @@ node_modules/
 # Secrets and environment files
 .env
 .env.*
+!.env.example
 secrets/*
 !secrets/.gitkeep
 !secrets/README.txt

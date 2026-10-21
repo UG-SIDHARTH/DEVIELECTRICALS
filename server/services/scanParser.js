@@ -41,12 +41,12 @@ function fixNumericOcrErrors(str) {
 function isNoiseLine(line) {
   const l = line.toLowerCase().trim();
   if (l.length < 2) return true;
-  if (/^(total|grand total|subtotal|balance|date|bill|invoice|estimate|material list|materials|sl no|s\.no|item)/i.test(l)) {
+  if (/^(total|grand total|subtotal|balance|date|bill|invoice|estimate|material list|materials|sl no|s\.no|item|phone|tel|mobile|ph)\b/i.test(l)) {
     return true;
   }
   // Phone number or date check
-  if (/^\+?\d{10,12}$/.test(l.replace(/\s/g, ''))) return true;
-  if (/^\d{1,2}[/-]\d{1,2}[/-]\d{2,4}$/.test(l)) return true;
+  if (/^(?:phone|tel|mob|ph)?[:\s]*\+?\d{10,12}$/i.test(l.replace(/\s/g, ''))) return true;
+  if (/^(?:date)?[:\s]*\d{1,2}[/-]\d{1,2}[/-]\d{2,4}$/i.test(l)) return true;
   return false;
 }
 
@@ -69,8 +69,8 @@ export function parseMaterialList(rawText) {
   const items = [];
 
   for (const rawLine of rawLines) {
-    // Strip leading list numbers like "1.", "1)", "1 - "
-    let line = rawLine.replace(/^\d+[\s.)\-]+/, '').trim();
+    // Strip leading list numbers like "1.", "1)", "1 - " (requires delimiter so "2 coil" is not stripped)
+    let line = rawLine.replace(/^\d+[.)\-]+\s*/, '').trim();
     if (!line) continue;
 
     let qty = 1;

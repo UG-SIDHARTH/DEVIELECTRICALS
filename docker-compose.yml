@@ -57,10 +57,16 @@ services:
     networks:
       - backend
       - edge
+    ports:
+      - "${MARKETING_PORT:-3164}:3164"
+      - "${BILLING_PORT:-3165}:3165"
     environment:
       NODE_ENV: production
       TZ: Asia/Kolkata
       PUBLIC_ORIGIN: ${PUBLIC_ORIGIN}
+      MARKETING_PORT: ${MARKETING_PORT:-3164}
+      BILLING_PORT: ${BILLING_PORT:-3165}
+      PORT: ${MARKETING_PORT:-3164}
       TRUSTED_PROXY_IP: 172.28.0.10
       DB_HOST: db
       DB_PORT: 5432
@@ -93,7 +99,7 @@ services:
     cpus: 1.5
     stop_grace_period: 20s
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3164/api/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
       interval: 30s
       timeout: 5s
       retries: 3

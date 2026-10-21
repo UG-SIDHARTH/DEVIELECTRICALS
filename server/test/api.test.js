@@ -42,7 +42,7 @@ vi.mock('../security/clientIp.js', () => ({
 
 import db from '../db/pool.js';
 import { validateSession, COOKIE_NAME } from '../security/sessions.js';
-import app from '../app.js';
+import { app, marketingApp, billingApp } from '../app.js';
 import config from '../config.js';
 
 describe('HTTP API & Security Integration Tests', () => {
@@ -222,6 +222,42 @@ describe('HTTP API & Security Integration Tests', () => {
       const throttled = results.filter(r => r.status === 429);
       expect(throttled.length).toBeGreaterThan(0);
       expect(throttled[0].body.error).toMatch(/Too many login attempts/i);
+    });
+  });
+
+  describe('Dual-Port Dedicated Architecture (3164 Marketing & 3165 Billing)', () => {
+    it('marketingApp (Port 3164) serves public website and isolates billing', async () => {
+      // 1. Root returns public landing page
+      const homeRes = await request(marketingApp).get('/');
+      expect(homeRes.status).toBe(200);
+      expect(homeRes.text).toContain('Devi Electrical');
+
+      // 2. Billing path on marketing port returns 404
+      const billingRes = await request(marketingApp).get('/billing');
+      expect(billingRes.status).toBe(404);
+      expect(billingRes.text).toContain('Staff billing portal');
+
+      // 3. Health check responds
+      db.query.mockResolvedValueOnce({ rows: [{ '?column?': 1 }] });
+      const healthRes = await request(marketingApp).get('/api/health');
+      expect(healthRes.status).toBe(200);
+    });
+
+    it('billingApp (Port 3165) redirects root to /billing/ and serves billing SPA', async () => {
+      // 1. Root redirects to /billing/
+      const rootRes = await request(billingApp).get('/');
+      expect(rootRes.status).toBe(302);
+      expect(rootRes.headers.location).toBe('/billing/');
+
+      // 2. Billing SPA entrypoint returns 200
+      const billingRes = await request(billingApp).get('/billing/');
+      expect(billingRes.status).toBe(200);
+      expect(billingRes.text).toContain('Devi Electrical');
+
+      // 3. Health check responds
+      db.query.mockResolvedValueOnce({ rows: [{ '?column?': 1 }] });
+      const healthRes = await request(billingApp).get('/api/health');
+      expect(healthRes.status).toBe(200);
     });
   });
 });

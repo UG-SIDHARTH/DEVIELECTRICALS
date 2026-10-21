@@ -29,8 +29,10 @@ const testDataKeys = JSON.stringify({
 
 const rawConfig = {
   NODE_ENV: process.env.NODE_ENV || 'production',
-  PORT: process.env.PORT ? parseInt(process.env.PORT, 10) : 3000,
-  PUBLIC_ORIGIN: process.env.PUBLIC_ORIGIN ? process.env.PUBLIC_ORIGIN.trim() : (isTestEnv ? 'http://127.0.0.1:3000' : undefined),
+  PORT: process.env.PORT ? parseInt(process.env.PORT, 10) : (process.env.MARKETING_PORT ? parseInt(process.env.MARKETING_PORT, 10) : 3164),
+  MARKETING_PORT: process.env.MARKETING_PORT ? parseInt(process.env.MARKETING_PORT, 10) : 3164,
+  BILLING_PORT: process.env.BILLING_PORT ? parseInt(process.env.BILLING_PORT, 10) : 3165,
+  PUBLIC_ORIGIN: process.env.PUBLIC_ORIGIN ? process.env.PUBLIC_ORIGIN.trim() : (isTestEnv ? 'http://127.0.0.1:3164' : undefined),
   TRUSTED_PROXY_IP: process.env.TRUSTED_PROXY_IP || '172.28.0.10',
 
   DB_HOST: process.env.DB_HOST || (isTestEnv ? 'localhost' : 'db'),
@@ -53,6 +55,8 @@ const rawConfig = {
 const configSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']),
   PORT: z.number().int().positive(),
+  MARKETING_PORT: z.number().int().positive(),
+  BILLING_PORT: z.number().int().positive(),
   PUBLIC_ORIGIN: z.string().url().refine((val) => {
     try {
       const u = new URL(val);
@@ -127,6 +131,8 @@ export const config = {
   isProd: parsedResult.data.NODE_ENV === 'production',
   isTest: parsedResult.data.NODE_ENV === 'test',
   port: parsedResult.data.PORT,
+  marketingPort: parsedResult.data.MARKETING_PORT,
+  billingPort: parsedResult.data.BILLING_PORT,
   publicOrigin: parsedResult.data.PUBLIC_ORIGIN.replace(/\/$/, ''),
   trustedProxyIp: parsedResult.data.TRUSTED_PROXY_IP,
   db: {

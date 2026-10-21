@@ -7,8 +7,10 @@ export default defineConfig({
     testTimeout: 10000,
     env: {
       NODE_ENV: 'test',
-      PORT: '3000',
-      PUBLIC_ORIGIN: 'http://127.0.0.1:3000',
+      PORT: '3164',
+      MARKETING_PORT: '3164',
+      BILLING_PORT: '3165',
+      PUBLIC_ORIGIN: 'http://127.0.0.1:3164',
       TRUSTED_PROXY_IP: '172.28.0.10',
       DB_HOST: 'localhost',
       DB_PORT: '5432',

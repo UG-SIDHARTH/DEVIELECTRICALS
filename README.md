@@ -96,7 +96,7 @@ sudo ss -tlnp
 5. In the **Public Hostnames** tab of your tunnel in Cloudflare:
    - **Path / Subdomain**: Point your designated hostname (referenced as `PUBLIC_ORIGIN`) to:
      - **Service**: `HTTP`
-     - **URL**: `172.28.0.20:3000` (or `app:3000`)
+     - **URL**: `172.28.0.20:3164` (or `app:3164` for public marketing; `app:3165` for staff billing)
    - **HTTP Settings**:
      - Enable **HTTP/2** and **HTTP/3 (QUIC)**.
      - Set **No TLS Verify** (since traffic within the local Docker bridge is plain HTTP).
@@ -138,6 +138,8 @@ sudo ss -tlnp
    Add the following variables (replacing `<PUBLIC_ORIGIN>` with your actual HTTPS origin without a trailing slash):
    ```env
    PUBLIC_ORIGIN=https://<your-custom-subdomain-or-domain>
+   MARKETING_PORT=3164
+   BILLING_PORT=3165
    NODE_ENV=production
    TZ=Asia/Kolkata
    AI_PROVIDER=gemini
