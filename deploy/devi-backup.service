@@ -1,0 +1,14 @@
+[Unit]
+Description=Devi Electrical Automated Database Backup
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/srv/devi
+ExecStart=/usr/bin/docker compose --profile tools run --rm backup
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,284 @@
+name: devi-electrical
+
+services:
+  db:
+    image: postgres:16-bookworm
+    command: >
+      postgres
+      -c listen_addresses=*
+      -c max_connections=20
+      -c shared_buffers=512MB
+      -c effective_cache_size=1GB
+      -c work_mem=4MB
+      -c maintenance_work_mem=128MB
+      -c wal_compression=on
+      -c checkpoint_completion_target=0.9
+      -c random_page_cost=4
+      -c effective_io_concurrency=1
+      -c synchronous_commit=on
+      -c password_encryption=scram-sha-256
+      -c log_min_duration_statement=500
+      -c timezone=Asia/Kolkata
+    environment:
+      POSTGRES_USER: devi_admin
+      POSTGRES_DB: devi
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_admin_password
+      TZ: Asia/Kolkata
+    secrets:
+      - db_admin_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devi_admin -d devi"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 1536m
+    shm_size: 256m
+    networks:
+      - backend
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PUBLIC_ORIGIN: ${PUBLIC_ORIGIN}
+    image: devi-app:latest
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+      - edge
+    environment:
+      NODE_ENV: production
+      TZ: Asia/Kolkata
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN}
+      TRUSTED_PROXY_IP: 172.28.0.10
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: devi
+      DB_USER: devi_app
+      DB_PASSWORD_FILE: /run/secrets/db_app_password
+      DATA_KEYS_FILE: /run/secrets/data_keys
+      BLIND_INDEX_KEY_FILE: /run/secrets/blind_index_key
+      PASSWORD_PEPPER_FILE: /run/secrets/password_pepper
+      AI_PROVIDER: ${AI_PROVIDER:-gemini}
+      AI_MODEL: ${AI_MODEL:-gemini-1.5-flash}
+      AI_API_KEY_FILE: /run/secrets/ai_api_key
+      BACKUP_STATUS_DIR: /var/backups/devi/status
+    secrets:
+      - db_app_password
+      - data_keys
+      - blind_index_key
+      - password_pepper
+      - ai_api_key
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid,nodev
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 100
+    mem_limit: 768m
+    cpus: 1.5
+    stop_grace_period: 20s
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    volumes:
+      - type: bind
+        source: /var/backups/devi/status
+        target: /var/backups/devi/status
+        read_only: true
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  cloudflared:
+    image: cloudflare/cloudflared:2024.12.0
+    command: tunnel --no-autoupdate run
+    env_file:
+      - ./secrets/cloudflared.env
+    networks:
+      edge:
+        ipv4_address: 172.28.0.10
+    depends_on:
+      app:
+        condition: service_healthy
+    mem_limit: 128m
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  migrate:
+    image: devi-app:latest
+    command: ["node", "server/db/migrate.js"]
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+    environment:
+      NODE_ENV: production
+      TZ: Asia/Kolkata
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: devi
+      DB_USER: devi_admin
+      DB_ADMIN_PASSWORD_FILE: /run/secrets/db_admin_password
+      DB_APP_PASSWORD_FILE: /run/secrets/db_app_password
+      DB_BACKUP_PASSWORD_FILE: /run/secrets/db_backup_password
+    secrets:
+      - db_admin_password
+      - db_app_password
+      - db_backup_password
+    profiles:
+      - tools
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  cli:
+    image: devi-app:latest
+    stdin_open: true
+    tty: true
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+    environment:
+      NODE_ENV: production
+      TZ: Asia/Kolkata
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN}
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: devi
+      DB_USER: devi_app
+      DB_PASSWORD_FILE: /run/secrets/db_app_password
+      DATA_KEYS_FILE: /run/secrets/data_keys
+      BLIND_INDEX_KEY_FILE: /run/secrets/blind_index_key
+      PASSWORD_PEPPER_FILE: /run/secrets/password_pepper
+    secrets:
+      - db_app_password
+      - data_keys
+      - blind_index_key
+      - password_pepper
+    profiles:
+      - tools
+
+  backup:
+    build:
+      context: .
+      dockerfile: backup.Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+      - edge
+    environment:
+      PGHOST: db
+      PGPORT: 5432
+      PGDATABASE: devi
+      PGUSER: devi_backup
+      PGPASSWORD_FILE: /run/secrets/db_backup_password
+      AGE_RECIPIENTS_FILE: /run/secrets/age_public_key
+      RCLONE_CONFIG_FILE: /run/secrets/rclone_conf
+      TZ: Asia/Kolkata
+    secrets:
+      - db_backup_password
+      - age_public_key
+      - rclone_conf
+    volumes:
+      - /var/backups/devi:/var/backups/devi
+    profiles:
+      - tools
+
+  tdb:
+    image: postgres:16-bookworm
+    environment:
+      POSTGRES_USER: test_user
+      POSTGRES_DB: test_devi
+      POSTGRES_PASSWORD: test_password_12345
+      TZ: Asia/Kolkata
+    networks:
+      - test_net
+    profiles:
+      - test
+
+  tester:
+    image: devi-app:latest
+    command: ["npm", "test"]
+    depends_on:
+      - tdb
+    networks:
+      - test_net
+    environment:
+      NODE_ENV: test
+      TZ: Asia/Kolkata
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-https://localhost}
+      DB_HOST: tdb
+      DB_PORT: 5432
+      DB_NAME: test_devi
+      DB_USER: test_user
+      DB_PASSWORD: test_password_12345
+    profiles:
+      - test
+
+volumes:
+  pgdata:
+
+networks:
+  backend:
+    internal: true
+  edge:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/24
+  test_net:
+    driver: bridge
+
+secrets:
+  db_admin_password:
+    file: ./secrets/db_admin_password
+  db_app_password:
+    file: ./secrets/db_app_password
+  db_backup_password:
+    file: ./secrets/db_backup_password
+  data_keys:
+    file: ./secrets/data_keys
+  blind_index_key:
+    file: ./secrets/blind_index_key
+  password_pepper:
+    file: ./secrets/password_pepper
+  cloudflared_env:
+    file: ./secrets/cloudflared.env
+  age_public_key:
+    file: ./secrets/age_public_key
+  rclone_conf:
+    file: ./secrets/rclone.conf
+  ai_api_key:
+    file: ./secrets/ai_api_key

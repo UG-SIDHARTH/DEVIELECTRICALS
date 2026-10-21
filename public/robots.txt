@@ -1,0 +1,6 @@
+User-agent: *
+Disallow: /billing/
+Disallow: /api/
+Allow: /
+
+Sitemap: {{PUBLIC_ORIGIN}}/sitemap.xml

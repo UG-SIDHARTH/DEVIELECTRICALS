@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en-IN" class="h-full bg-surface-bg">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Devi Electrical | Staff Billing & Inventory</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#0F172A">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/assets/app.css">
+</head>
+<body class="h-full text-navy antialiased flex flex-col">
+
+  <!-- Application Container (Dynamic Views) -->
+  <div id="app" class="h-full flex flex-col">
+    <!-- View rendered by JavaScript router -->
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- Modal Container -->
+  <div id="modal-container" class="fixed inset-0 z-50 hidden bg-navy-950/60 backdrop-blur-sm flex items-center justify-center p-4"></div>
+
+  <!-- Print Sheet Container (Isolated from Screen App UI) -->
+  <div id="print-sheet-container" class="hidden print:block"></div>
+
+  <!-- Vendor Tesseract.js (Self-Hosted) -->
+  <script src="/vendor/tesseract/tesseract.min.js"></script>
+
+  <!-- Application Main Script -->
+  <script type="module" src="/billing/app.js"></script>
+</body>
+</html>

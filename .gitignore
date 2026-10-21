@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+.npm/
+
+# Secrets and environment files
+.env
+.env.*
+secrets/*
+!secrets/.gitkeep
+!secrets/README.txt
+
+# Backups and crypto keys
+backups/
+*.age
+*.dbak
+*.key
+*.pem
+certificates/
+
+# Build artifacts
+public/assets/
+public/vendor/
+dist/
+build/
+coverage/
+
+# OS and IDE files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
