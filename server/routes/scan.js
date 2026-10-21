@@ -1,7 +1,7 @@
 import express from 'express';
 import { z } from 'zod';
 import sharp from 'sharp';
-import { createJimp } from 'jimp';
+import { Jimp } from 'jimp';
 import db from '../db/pool.js';
 import config from '../config.js';
 import { requireAuth } from '../middleware/auth.js';
