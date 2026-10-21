@@ -157,10 +157,12 @@ services:
       DB_ADMIN_PASSWORD_FILE: /run/secrets/db_admin_password
       DB_APP_PASSWORD_FILE: /run/secrets/db_app_password
       DB_BACKUP_PASSWORD_FILE: /run/secrets/db_backup_password
+      PASSWORD_PEPPER_FILE: /run/secrets/password_pepper
     secrets:
       - db_admin_password
       - db_app_password
       - db_backup_password
+      - password_pepper
     logging:
       driver: json-file
       options:

@@ -1,7 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
+import argon2 from 'argon2';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -46,6 +48,7 @@ const adminPassword = getSecret('DB_ADMIN_PASSWORD_FILE', 'DB_ADMIN_PASSWORD', '
                       getSecret('DB_PASSWORD_FILE', 'DB_PASSWORD', 'db_admin_password', 'test_password');
 const appPassword = getSecret('DB_APP_PASSWORD_FILE', 'DB_APP_PASSWORD', 'db_app_password', null);
 const backupPassword = getSecret('DB_BACKUP_PASSWORD_FILE', 'DB_BACKUP_PASSWORD', 'db_backup_password', null);
+const passwordPepper = getSecret('PASSWORD_PEPPER_FILE', 'PASSWORD_PEPPER', 'password_pepper', null);
 
 export async function runMigrations() {
   const dbConfig = {
@@ -140,10 +143,20 @@ export async function runMigrations() {
     const ownerCheck = await client.query("SELECT COUNT(*) FROM users WHERE role = 'owner'");
     if (parseInt(ownerCheck.rows[0].count, 10) === 0) {
       console.log('No owner account detected. Provisioning default initial owner (admin)...');
-      const { hashPassword } = await import('../security/passwords.js');
       const defaultPassword = process.env.INITIAL_OWNER_PASSWORD || 'DeviElectrical2026!';
       const defaultUsername = (process.env.INITIAL_OWNER_USERNAME || 'admin').trim().toLowerCase();
-      const passwordHash = await hashPassword(defaultPassword);
+
+      const peppered = passwordPepper
+        ? crypto.createHmac('sha256', Buffer.from(passwordPepper, 'utf8')).update(defaultPassword).digest('hex')
+        : defaultPassword;
+
+      const passwordHash = await argon2.hash(peppered, {
+        type: argon2.argon2id,
+        memoryCost: 65536,
+        timeCost: 3,
+        parallelism: 1
+      });
+
       await client.query(
         `INSERT INTO users (username, password_hash, role, created_at, updated_at)
          VALUES ($1, $2, 'owner', NOW(), NOW())`,

@@ -79,8 +79,7 @@ async function processAndSanitizeImage(buffer) {
   }
 
   // Fallback using Jimp
-  const jimp = await createJimp();
-  const image = await jimp.read(buffer);
+  const image = await Jimp.read(buffer);
   if (image.bitmap.width > 1600 || image.bitmap.height > 1600) {
     image.scaleToFit({ w: 1600, h: 1600 });
   }
