@@ -1,7 +1,25 @@
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 
-function readSecret(envVar, fileVar, fallback = undefined) {
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const projectRoot = path.resolve(__dirname, '..');
+
+// Automatically load .env if available
+if (typeof process.loadEnvFile === 'function') {
+  const envPath = path.join(projectRoot, '.env');
+  if (fs.existsSync(envPath)) {
+    try {
+      process.loadEnvFile(envPath);
+    } catch {
+      // Ignore parse warnings on non-fatal env lines
+    }
+  }
+}
+
+function readSecret(envVar, fileVar, defaultSecretFile = null, fallback = undefined) {
   if (process.env[fileVar]) {
     try {
       const filePath = process.env[fileVar];
@@ -16,6 +34,19 @@ function readSecret(envVar, fileVar, fallback = undefined) {
   if (process.env[envVar] !== undefined && process.env[envVar] !== '') {
     return process.env[envVar].trim();
   }
+  if (defaultSecretFile) {
+    const localSecretPath = path.join(projectRoot, 'secrets', defaultSecretFile);
+    if (fs.existsSync(localSecretPath)) {
+      try {
+        const content = fs.readFileSync(localSecretPath, 'utf8').trim();
+        if (content !== '') {
+          return content;
+        }
+      } catch {
+        // Fall back to default
+      }
+    }
+  }
   return fallback;
 }
 
@@ -27,27 +58,31 @@ const testDataKeys = JSON.stringify({
   }
 });
 
+const defaultPort = process.env.PORT ? parseInt(process.env.PORT, 10) : (process.env.MARKETING_PORT ? parseInt(process.env.MARKETING_PORT, 10) : 3164);
+const marketingPort = process.env.MARKETING_PORT ? parseInt(process.env.MARKETING_PORT, 10) : 3164;
+const billingPort = process.env.BILLING_PORT ? parseInt(process.env.BILLING_PORT, 10) : 3165;
+
 const rawConfig = {
   NODE_ENV: process.env.NODE_ENV || 'production',
-  PORT: process.env.PORT ? parseInt(process.env.PORT, 10) : (process.env.MARKETING_PORT ? parseInt(process.env.MARKETING_PORT, 10) : 3164),
-  MARKETING_PORT: process.env.MARKETING_PORT ? parseInt(process.env.MARKETING_PORT, 10) : 3164,
-  BILLING_PORT: process.env.BILLING_PORT ? parseInt(process.env.BILLING_PORT, 10) : 3165,
-  PUBLIC_ORIGIN: process.env.PUBLIC_ORIGIN ? process.env.PUBLIC_ORIGIN.trim() : (isTestEnv ? 'http://127.0.0.1:3164' : undefined),
+  PORT: defaultPort,
+  MARKETING_PORT: marketingPort,
+  BILLING_PORT: billingPort,
+  PUBLIC_ORIGIN: process.env.PUBLIC_ORIGIN ? process.env.PUBLIC_ORIGIN.trim() : (isTestEnv ? 'http://127.0.0.1:3164' : `http://localhost:${marketingPort}`),
   TRUSTED_PROXY_IP: process.env.TRUSTED_PROXY_IP || '172.28.0.10',
 
   DB_HOST: process.env.DB_HOST || (isTestEnv ? 'localhost' : 'db'),
   DB_PORT: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 5432,
   DB_NAME: process.env.DB_NAME || 'devi',
   DB_USER: process.env.DB_USER || 'devi_app',
-  DB_PASSWORD: readSecret('DB_PASSWORD', 'DB_PASSWORD_FILE', isTestEnv ? 'test_db_password_12chars' : undefined),
+  DB_PASSWORD: readSecret('DB_PASSWORD', 'DB_PASSWORD_FILE', 'db_app_password', isTestEnv ? 'test_db_password_12chars' : undefined),
 
-  DATA_KEYS_RAW: readSecret('DATA_KEYS', 'DATA_KEYS_FILE', isTestEnv ? testDataKeys : undefined),
-  BLIND_INDEX_KEY_RAW: readSecret('BLIND_INDEX_KEY', 'BLIND_INDEX_KEY_FILE', isTestEnv ? 'test_blind_index_key_32_characters_long' : undefined),
-  PASSWORD_PEPPER: readSecret('PASSWORD_PEPPER', 'PASSWORD_PEPPER_FILE', isTestEnv ? 'test_password_pepper_32_characters_long' : undefined),
+  DATA_KEYS_RAW: readSecret('DATA_KEYS', 'DATA_KEYS_FILE', 'data_keys', isTestEnv ? testDataKeys : undefined),
+  BLIND_INDEX_KEY_RAW: readSecret('BLIND_INDEX_KEY', 'BLIND_INDEX_KEY_FILE', 'blind_index_key', isTestEnv ? 'test_blind_index_key_32_characters_long' : undefined),
+  PASSWORD_PEPPER: readSecret('PASSWORD_PEPPER', 'PASSWORD_PEPPER_FILE', 'password_pepper', isTestEnv ? 'test_password_pepper_32_characters_long' : undefined),
 
   AI_PROVIDER: process.env.AI_PROVIDER || 'gemini',
   AI_MODEL: process.env.AI_MODEL || 'gemini-1.5-flash',
-  AI_API_KEY: readSecret('AI_API_KEY', 'AI_API_KEY_FILE', null),
+  AI_API_KEY: readSecret('AI_API_KEY', 'AI_API_KEY_FILE', 'ai_api_key', null),
 
   BACKUP_STATUS_DIR: process.env.BACKUP_STATUS_DIR || '/var/backups/devi/status'
 };
@@ -60,7 +95,8 @@ const configSchema = z.object({
   PUBLIC_ORIGIN: z.string().url().refine((val) => {
     try {
       const u = new URL(val);
-      if (rawConfig.NODE_ENV === 'production' && u.protocol !== 'https:') {
+      const isLocalhost = u.hostname === 'localhost' || u.hostname === '127.0.0.1' || u.hostname === '0.0.0.0';
+      if (rawConfig.NODE_ENV === 'production' && u.protocol !== 'https:' && !isLocalhost) {
         return false;
       }
       return u.pathname === '/' || u.pathname === '';

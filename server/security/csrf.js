@@ -15,7 +15,22 @@ export function verifyCsrf(req, res, next) {
     return res.status(403).json({ error: 'Forbidden: Missing Origin header' });
   }
 
-  if (origin !== config.publicOrigin) {
+  const host = req.headers['host'];
+  const allowedOrigins = new Set([
+    config.publicOrigin,
+    `http://localhost:${config.marketingPort}`,
+    `http://127.0.0.1:${config.marketingPort}`,
+    `http://localhost:${config.billingPort}`,
+    `http://127.0.0.1:${config.billingPort}`,
+    `https://localhost:${config.marketingPort}`,
+    `https://localhost:${config.billingPort}`
+  ]);
+  if (host) {
+    allowedOrigins.add(`http://${host}`);
+    allowedOrigins.add(`https://${host}`);
+  }
+
+  if (!allowedOrigins.has(origin)) {
     return res.status(403).json({ error: 'Forbidden: Cross-origin request rejected' });
   }
 

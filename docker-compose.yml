@@ -49,11 +49,13 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        PUBLIC_ORIGIN: ${PUBLIC_ORIGIN}
+        PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:3164}
     image: devi-app:latest
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     networks:
       - backend
       - edge
@@ -63,7 +65,7 @@ services:
     environment:
       NODE_ENV: production
       TZ: Asia/Kolkata
-      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN}
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:3164}
       MARKETING_PORT: ${MARKETING_PORT:-3164}
       BILLING_PORT: ${BILLING_PORT:-3165}
       PORT: ${MARKETING_PORT:-3164}
@@ -119,7 +121,10 @@ services:
     image: cloudflare/cloudflared:2024.12.0
     command: tunnel --no-autoupdate run
     env_file:
-      - ./secrets/cloudflared.env
+      - path: ./secrets/cloudflared.env
+        required: false
+    profiles:
+      - tunnel
     networks:
       edge:
         ipv4_address: 172.28.0.10
@@ -137,6 +142,7 @@ services:
   migrate:
     image: devi-app:latest
     command: ["node", "server/db/migrate.js"]
+    restart: "no"
     depends_on:
       db:
         condition: service_healthy
@@ -156,8 +162,6 @@ services:
       - db_admin_password
       - db_app_password
       - db_backup_password
-    profiles:
-      - tools
     logging:
       driver: json-file
       options:
@@ -176,7 +180,7 @@ services:
     environment:
       NODE_ENV: production
       TZ: Asia/Kolkata
-      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN}
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:3164}
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: devi
@@ -280,8 +284,6 @@ secrets:
     file: ./secrets/blind_index_key
   password_pepper:
     file: ./secrets/password_pepper
-  cloudflared_env:
-    file: ./secrets/cloudflared.env
   age_public_key:
     file: ./secrets/age_public_key
   rclone_conf:

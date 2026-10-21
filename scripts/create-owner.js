@@ -21,31 +21,35 @@ async function createOwner() {
     const ownerCount = parseInt(existingRes.rows[0].count, 10);
     if (ownerCount > 0) {
       console.log(`Note: ${ownerCount} owner account(s) already exist.`);
-      const proceed = await ask('Do you wish to create an additional owner account? (y/N): ');
-      if (proceed.toLowerCase() !== 'y') {
-        console.log('Setup aborted.');
-        process.exit(0);
+      if (!process.env.OWNER_USERNAME) {
+        const proceed = await ask('Do you wish to create an additional owner account? (y/N): ');
+        if (proceed.toLowerCase() !== 'y') {
+          console.log('Setup aborted.');
+          process.exit(0);
+        }
       }
     }
 
-    const usernameInput = await ask('Enter owner username (letters, numbers, min 3 chars): ');
+    const usernameInput = process.env.OWNER_USERNAME || (await ask('Enter owner username (letters, numbers, min 3 chars): '));
     const username = usernameInput.trim().toLowerCase();
     if (!/^[a-z0-9_-]{3,50}$/.test(username)) {
       console.error('Invalid username format. Must be 3-50 alphanumeric characters.');
       process.exit(1);
     }
 
-    const password = await ask('Enter strong password (minimum 12 characters, letters & numbers): ');
+    const password = process.env.OWNER_PASSWORD || (await ask('Enter strong password (minimum 12 characters, letters & numbers): '));
     const pwdCheck = validatePasswordStrength(password);
     if (!pwdCheck.valid) {
       console.error(`Password validation error: ${pwdCheck.message}`);
       process.exit(1);
     }
 
-    const confirmPassword = await ask('Confirm password: ');
-    if (password !== confirmPassword) {
-      console.error('Passwords do not match.');
-      process.exit(1);
+    if (!process.env.OWNER_PASSWORD) {
+      const confirmPassword = await ask('Confirm password: ');
+      if (password !== confirmPassword) {
+        console.error('Passwords do not match.');
+        process.exit(1);
+      }
     }
 
     console.log('Hashing password with Argon2id + HMAC pepper...');

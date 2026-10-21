@@ -8,6 +8,8 @@
     "build:css": "tailwindcss -i ./src/input.css -o ./public/assets/app.css --minify",
     "build:assets": "node scripts/build-assets.js",
     "build": "npm run build:css && npm run build:assets",
+    "init-secrets": "node scripts/init-secrets.js",
+    "create-owner": "node scripts/create-owner.js",
     "start": "node --max-old-space-size=384 server/index.js",
     "migrate": "node server/db/migrate.js",
     "test": "vitest run",

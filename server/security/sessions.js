@@ -27,10 +27,12 @@ export async function createSession(userId, clientIp, userAgent, res) {
     [sessionHash, userId, csrfHash, clientIp, userAgent || null, expiresAt]
   );
 
+  const isSecure = config.publicOrigin.startsWith('https://');
+
   res.cookie(COOKIE_NAME, sessionToken, {
     httpOnly: true,
-    secure: true,
-    sameSite: 'strict',
+    secure: isSecure,
+    sameSite: 'lax',
     path: '/',
     maxAge: ABSOLUTE_TIMEOUT_MS
   });
@@ -100,10 +102,11 @@ export async function destroySession(token, res) {
     await destroySessionByHash(sessionHash);
   }
   if (res) {
+    const isSecure = config.publicOrigin.startsWith('https://');
     res.clearCookie(COOKIE_NAME, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
+      secure: isSecure,
+      sameSite: 'lax',
       path: '/'
     });
   }

@@ -18,7 +18,8 @@ RUN npm rebuild sharp argon2 --build-from-source
 # Stage 2: Build frontend assets, Tailwind CSS, vendor assets & template PUBLIC_ORIGIN
 FROM node:24-bookworm-slim AS build
 WORKDIR /app
-ARG PUBLIC_ORIGIN
+ARG PUBLIC_ORIGIN=http://localhost:3164
+ENV PUBLIC_ORIGIN=${PUBLIC_ORIGIN}
 
 COPY package.json package-lock.json* tailwind.config.js ./
 COPY --from=deps /app/node_modules ./node_modules

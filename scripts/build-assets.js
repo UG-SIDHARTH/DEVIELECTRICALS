@@ -112,7 +112,13 @@ try {
 }
 
 // 5. Template {{PUBLIC_ORIGIN}} in public files
-const publicOrigin = process.env.PUBLIC_ORIGIN ? process.env.PUBLIC_ORIGIN.trim().replace(/\/$/, '') : '';
+const envPath = path.resolve(__dirname, '../.env');
+if (typeof process.loadEnvFile === 'function' && fs.existsSync(envPath)) {
+  try {
+    process.loadEnvFile(envPath);
+  } catch {}
+}
+const publicOrigin = process.env.PUBLIC_ORIGIN ? process.env.PUBLIC_ORIGIN.trim().replace(/\/$/, '') : 'http://localhost:3164';
 
 const templateFiles = ['index.html', 'robots.txt', 'sitemap.xml'];
 

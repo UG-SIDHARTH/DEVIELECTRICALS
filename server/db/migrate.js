@@ -5,21 +5,47 @@ import pg from 'pg';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const projectRoot = path.resolve(__dirname, '../..');
 
-function getSecret(fileVar, envVar, fallback) {
+// Automatically load .env if available
+if (typeof process.loadEnvFile === 'function') {
+  const envPath = path.join(projectRoot, '.env');
+  if (fs.existsSync(envPath)) {
+    try {
+      process.loadEnvFile(envPath);
+    } catch {
+      // Ignore parse warnings on non-fatal env lines
+    }
+  }
+}
+
+function getSecret(fileVar, envVar, defaultSecretFile = null, fallback = null) {
   if (process.env[fileVar] && fs.existsSync(process.env[fileVar])) {
     return fs.readFileSync(process.env[fileVar], 'utf8').trim();
   }
   if (process.env[envVar]) {
     return process.env[envVar].trim();
   }
+  if (defaultSecretFile) {
+    const localSecretPath = path.join(projectRoot, 'secrets', defaultSecretFile);
+    if (fs.existsSync(localSecretPath)) {
+      try {
+        const content = fs.readFileSync(localSecretPath, 'utf8').trim();
+        if (content !== '') {
+          return content;
+        }
+      } catch {
+        // Fall back
+      }
+    }
+  }
   return fallback;
 }
 
-const adminPassword = getSecret('DB_ADMIN_PASSWORD_FILE', 'DB_ADMIN_PASSWORD', null) ||
-                      getSecret('DB_PASSWORD_FILE', 'DB_PASSWORD', 'test_password');
-const appPassword = getSecret('DB_APP_PASSWORD_FILE', 'DB_APP_PASSWORD', null);
-const backupPassword = getSecret('DB_BACKUP_PASSWORD_FILE', 'DB_BACKUP_PASSWORD', null);
+const adminPassword = getSecret('DB_ADMIN_PASSWORD_FILE', 'DB_ADMIN_PASSWORD', 'db_admin_password', null) ||
+                      getSecret('DB_PASSWORD_FILE', 'DB_PASSWORD', 'db_admin_password', 'test_password');
+const appPassword = getSecret('DB_APP_PASSWORD_FILE', 'DB_APP_PASSWORD', 'db_app_password', null);
+const backupPassword = getSecret('DB_BACKUP_PASSWORD_FILE', 'DB_BACKUP_PASSWORD', 'db_backup_password', null);
 
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
