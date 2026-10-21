@@ -137,6 +137,22 @@ async function runMigrations() {
       await client.query(`GRANT pg_read_all_data TO devi_backup;`);
     }
 
+    // 4. Ensure an initial owner account exists
+    const ownerCheck = await client.query("SELECT COUNT(*) FROM users WHERE role = 'owner'");
+    if (parseInt(ownerCheck.rows[0].count, 10) === 0) {
+      console.log('No owner account detected. Provisioning default initial owner (admin)...');
+      const { hashPassword } = await import('../security/passwords.js');
+      const defaultPassword = process.env.INITIAL_OWNER_PASSWORD || 'DeviElectrical2026!';
+      const defaultUsername = (process.env.INITIAL_OWNER_USERNAME || 'admin').trim().toLowerCase();
+      const passwordHash = await hashPassword(defaultPassword);
+      await client.query(
+        `INSERT INTO users (username, password_hash, role, created_at, updated_at)
+         VALUES ($1, $2, 'owner', NOW(), NOW())`,
+        [defaultUsername, passwordHash]
+      );
+      console.log(`✓ Initial store owner created: username="${defaultUsername}", password="${defaultPassword}".`);
+    }
+
     console.log('All migrations and role configurations completed successfully.');
   } finally {
     client.release();
