@@ -1,8 +1,7 @@
 import crypto from 'node:crypto';
 import db from '../db/pool.js';
 import config from '../config.js';
-
-export const COOKIE_NAME = '__Host-devi_session';
+export const COOKIE_NAME = (config.publicOrigin && config.publicOrigin.startsWith('https://')) ? '__Host-devi_session' : 'devi_session';
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const ABSOLUTE_TIMEOUT_MS = 12 * 60 * 60 * 1000; // 12 hours
 

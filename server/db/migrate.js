@@ -47,17 +47,16 @@ const adminPassword = getSecret('DB_ADMIN_PASSWORD_FILE', 'DB_ADMIN_PASSWORD', '
 const appPassword = getSecret('DB_APP_PASSWORD_FILE', 'DB_APP_PASSWORD', 'db_app_password', null);
 const backupPassword = getSecret('DB_BACKUP_PASSWORD_FILE', 'DB_BACKUP_PASSWORD', 'db_backup_password', null);
 
-const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 5432,
-  database: process.env.DB_NAME || 'devi',
-  user: process.env.DB_USER || 'devi_admin',
-  password: adminPassword
-};
+export async function runMigrations() {
+  const dbConfig = {
+    host: process.env.DB_HOST || '127.0.0.1',
+    port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 5432,
+    database: process.env.DB_NAME || 'devi',
+    user: process.env.DB_USER || 'devi_admin',
+    password: adminPassword
+  };
 
-const pool = new pg.Pool(dbConfig);
-
-async function runMigrations() {
+  const pool = new pg.Pool(dbConfig);
   console.log('Connecting to database as migration admin...');
   const client = await pool.connect();
 
@@ -160,7 +159,9 @@ async function runMigrations() {
   }
 }
 
-runMigrations().catch(err => {
-  console.error('Migration failed:', err);
-  process.exit(1);
-});
+if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('server/db/migrate.js')) {
+  runMigrations().catch(err => {
+    console.error('Migration failed:', err);
+    process.exit(1);
+  });
+}

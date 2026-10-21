@@ -204,7 +204,7 @@ router.get('/me', requireAuth, async (req, res, next) => {
 
 router.post('/logout', requireAuth, async (req, res, next) => {
   try {
-    const token = req.cookies?.[COOKIE_NAME];
+    const token = req.cookies?.[COOKIE_NAME] || req.cookies?.devi_session || req.cookies?.['__Host-devi_session'];
     await destroySession(token, res);
 
     await logAuditEvent({
